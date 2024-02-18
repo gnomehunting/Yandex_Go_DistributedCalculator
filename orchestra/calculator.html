@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Calculator</title>
+    <script src="https://unpkg.com/htmx.org/dist/htmx.min.js"></script>
+</head>
+<body>
+    <h1><a href="/calculator/" >Calculator</a> &nbsp
+        <a href="/timings/" >Timings</a> &nbsp
+        <a href="/agents/" >Agent Monitoring </a>
+    <h1>
+        <br>
+        <h2>CALCULATOR</h2>
+        <br>
+        <button onclick="location.reload()">Refresh</button>
+    <h3>
+    <ul id="item-list">
+        {{range .}}
+            <li>{{.Text}} &nbsp &nbsp Result: {{.Result}}<br> ID: {{.Id}} &nbsp &nbsp Status: {{.Status}}  </li>
+        {{end}}
+    </ul>
+    </h3>
+    <form hx-post="/add/"  hx-target="#item-list" hx-select="#item-list" hx-swap="outerHTML">
+        <input type="search" name="item" placeholder="Enter an expression to solve">
+        <button type="submit">Solve</button>
+    </form>
+</body>
+</html>

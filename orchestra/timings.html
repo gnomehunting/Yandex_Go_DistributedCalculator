@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://unpkg.com/htmx.org/dist/htmx.min.js"></script>
+    <title>Timings</title>
+</head>
+<body>
+    <h1><a href="/calculator/" >Calculator</a> &nbsp
+        <a href="/timings/" >Timings</a> &nbsp
+        <a href="/agents/" >Agent Monitoring </a>
+    <h1>
+        <br>
+        <h2>TIMINGS</h2>
+        <br>
+    <h3>
+        <div id="display">
+            Time to add: {{.Plus}} second <br> Time to subtract: {{.Minus}} second <br> Time to multiply: {{.Multiply}} second <br> Time to divide: {{.Divide}} second<br> Display time of inactive server: {{.DisplayTime}} second <br>
+        </div> 
+        <form hx-post="/changetimings/"  hx-target="#display" hx-select="#display" hx-swap="outerHTML">
+          
+            <input type="search" name="plu" placeholder="Set Plus"> 
+            <br>
+            <input type="search" name="min" placeholder="Set Minus">
+            <br>
+            <input type="search" name="mul" placeholder="Set Multiply">
+            <br>
+            <input type="search" name="div" placeholder="Set Divide">
+            <br>
+            <input type="search" name="whb" placeholder="Set Display time">
+            <br>
+            <button type="submit">Submit</button>
+        </form>
+</h3>
+</body>
+</html>
