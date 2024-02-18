@@ -16,7 +16,10 @@
     <h3>
     <ul id="item-list">
         {{range .}}
-            <li>{{.}}  </li>
+            {{if .Display}}
+                <li> Port: {{.Port}}  &nbsp; Status: {{.Status}} <br>
+                Times not responded: {{.NotResponded}} <br></li>
+            {{end}}
         {{end}}
     </ul>
     </h3>

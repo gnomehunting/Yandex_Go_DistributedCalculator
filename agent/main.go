@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -11,6 +13,7 @@ import (
 )
 
 var (
+	AgentPort   string
 	HostPort    string
 	ConnectedTo string
 	Expression  string
@@ -32,13 +35,13 @@ func evalWithDelay(expr string, timings []string) (result float64) { // функ
 		val, _ := strconv.Atoi(timings[i])
 		intExecutionTimings = append(intExecutionTimings, val)
 	}
-	ToExecutePlus, ToExecuteMinus, ToExecuteMultiply, ToExecuteDivide := intExecutionTimings[0], intExecutionTimings[1], intExecutionTimings[2], intExecutionTimings[3]
+	ToExecutePlus, ToExecuteMinus, ToExecuteMultiply, ToExecuteDivide := strings.Count(expr, "+")*intExecutionTimings[0], strings.Count(expr, "2")*intExecutionTimings[1], strings.Count(expr, "*")*intExecutionTimings[2], strings.Count(expr, "/")*intExecutionTimings[3]
 	time.Sleep(time.Second*time.Duration(ToExecuteMinus) + time.Second*time.Duration(ToExecutePlus) + time.Second*time.Duration(ToExecuteMultiply) + time.Second*time.Duration(ToExecuteDivide))
 	return eval(expr)
 }
 
 func sendToOrchestraByGet(res float64) { // функция, необходимая для работы solve, отправляет решённое выражение
-	addr := fmt.Sprintf("http://127.0.0.1:%s/receiveresult/?Result=%.3f&Id=%s&AgentPort=8999", ConnectedTo, Result, Id)
+	addr := fmt.Sprintf("http://127.0.0.1:%s/receiveresult/?Result=%.3f&Id=%s&AgentPort=%s", ConnectedTo, Result, Id, AgentPort)
 	fmt.Println(addr)
 	//addr := "http://127.0.0.1:8080/receiveresult/?Result=15.5&Id=1488"
 	_, _ = http.Get(addr)
@@ -64,11 +67,15 @@ func Solve(w http.ResponseWriter, r *http.Request) { // /solve/ получает
 }
 
 func HandleHeratbeat(w http.ResponseWriter, r *http.Request) { // /heartbeat/ оркестр отправляет сюда хартбиты
+	ConnectedTo = r.URL.Query().Get("HostPort")
 	fmt.Println("hb received", ConnectedTo)
 }
 
 func main() {
-
+	AgentPort = os.Args[1]
+	if AgentPort == "" {
+		log.Fatal("PORT not set")
+	}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "you shouldnt be here)")
 	})
@@ -76,10 +83,10 @@ func main() {
 	http.HandleFunc("/solve/", Solve)
 	http.HandleFunc("/heartbeat/", HandleHeratbeat)
 
-	http.ListenAndServe(":8999", nil)
+	http.ListenAndServe(":"+AgentPort, nil)
 }
 
 // 127.0.0.1:8999/connect/?HostPort=8080
-// 127.0.0.1:8999/solve/?Expression=(2%2B2*5-3)%2F2&Id=1488&ExecutionTimings=1!2!3!4
+// 127.0.0.1:8000/solve/?Expression=(2%2B2*5-3)%2F2&Id=1&ExecutionTimings=1!2!3!4
 // + == %2B
 // / == %2F

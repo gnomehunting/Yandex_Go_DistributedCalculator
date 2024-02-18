@@ -3,15 +3,20 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
+	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type Agent struct {
-	Status string
-	Port   string
+	Status       string
+	Port         string
+	NotResponded int
+	Display      bool
 }
 type Expression struct {
 	Text   string
@@ -33,6 +38,30 @@ var ListOfAgents []Agent
 var IdCounter int
 var newTimings Timings
 
+func isValidExpression(expression string) bool {
+	re := regexp.MustCompile(`^\d+([\+\-\*\/]\d+)+$`)
+	withoutcommas := expression
+	withoutcommas = strings.ReplaceAll(withoutcommas, "(", "")
+	withoutcommas = strings.ReplaceAll(withoutcommas, ")", "")
+
+	ismatching := re.MatchString(withoutcommas)
+
+	stack := []rune{}
+
+	for _, char := range expression {
+		if char == '(' {
+			stack = append(stack, '(')
+		} else if char == ')' {
+			if len(stack) == 0 {
+				return false
+			}
+			stack = stack[:len(stack)-1]
+		}
+	}
+
+	return len(stack) == 0 && ismatching
+}
+
 func ReceiveResult(w http.ResponseWriter, r *http.Request) { // /receiveresult/ агент отправляет сюда решённое выражение
 	result := r.URL.Query().Get("Result")
 	id := r.URL.Query().Get("Id")
@@ -49,7 +78,12 @@ func ReceiveResult(w http.ResponseWriter, r *http.Request) { // /receiveresult/ 
 
 func AddExpression(w http.ResponseWriter, r *http.Request) {
 	txt := r.FormValue("item")
-	MapOfExpressions[len(MapOfExpressions)] = Expression{Text: txt, Id: strconv.Itoa(len(MapOfExpressions)), Result: "0", Status: "unsolved"}
+	if isValidExpression(txt) {
+		MapOfExpressions[len(MapOfExpressions)] = Expression{Text: txt, Id: strconv.Itoa(len(MapOfExpressions)), Result: "0", Status: "unsolved"}
+	} else {
+		MapOfExpressions[len(MapOfExpressions)] = Expression{Text: txt, Id: strconv.Itoa(len(MapOfExpressions)), Result: "0", Status: "invalid"}
+	}
+
 	http.Redirect(w, r, "/calculator/", http.StatusSeeOther)
 }
 func CalculatorPage(w http.ResponseWriter, r *http.Request) {
@@ -58,20 +92,24 @@ func CalculatorPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func ChangeTimings(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.FormValue("plus"))
-	if r.FormValue("plu") != "" {
+	_, err1 := strconv.Atoi(r.FormValue("plu"))
+	_, err2 := strconv.Atoi(r.FormValue("min"))
+	_, err3 := strconv.Atoi(r.FormValue("mul"))
+	_, err4 := strconv.Atoi(r.FormValue("div"))
+	_, err5 := strconv.Atoi(r.FormValue("whb"))
+	if err1 == nil {
 		newTimings.Plus = r.FormValue("plu")
 	}
-	if r.FormValue("min") != "" {
+	if err2 == nil {
 		newTimings.Minus = r.FormValue("min")
 	}
-	if r.FormValue("mul") != "" {
+	if err3 == nil {
 		newTimings.Multiply = r.FormValue("mul")
 	}
-	if r.FormValue("div") != "" {
+	if err4 == nil {
 		newTimings.Divide = r.FormValue("div")
 	}
-	if r.FormValue("whb") != "" {
+	if err5 == nil {
 		newTimings.DisplayTime = r.FormValue("whb")
 	}
 	http.Redirect(w, r, "/timings/", http.StatusSeeOther)
@@ -84,35 +122,61 @@ func TimingsPage(w http.ResponseWriter, r *http.Request) {
 
 func AddAgent(w http.ResponseWriter, r *http.Request) {
 	port := r.FormValue("agentport")
-	addr := fmt.Sprintf("http://127.0.0.1:%s/connect/?HostPort=%s", port, OrchestraPort)
-	_, _ = http.Get(addr)
-	ListOfAgents = append(ListOfAgents, Agent{Port: port, Status: "online"})
-	fmt.Println(ListOfAgents)
-	http.Redirect(w, r, "/agents/", http.StatusSeeOther)
+	_, err := strconv.Atoi(port)
+	if err != nil {
+		fmt.Println(err)
+		http.Redirect(w, r, "/agents/", http.StatusSeeOther)
+	} else {
+		addr := fmt.Sprintf("http://127.0.0.1:%s/connect/?HostPort=%s", port, OrchestraPort)
+		_, _ = http.Get(addr)
+		ListOfAgents = append(ListOfAgents, Agent{Port: port, Status: "notresponding", NotResponded: 0, Display: true})
+		http.Redirect(w, r, "/agents/", http.StatusSeeOther)
+	}
+
 }
 func AgentsPage(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("orchestra/agents.html"))
 	tmpl.Execute(w, ListOfAgents)
 }
 
-/*
-	func StartHeartbeat(agent *Agent) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) { //HEARTBEAT сюда передаётся порт агента, оркест начинает слдать ему хартбиты
-			heartbeataddr := fmt.Sprintf("http://127.0.0.1:%s/heartbeat/?HostPort=%s", agent.Port, OrchestraPort)
-			go func() {
-				for {
-					time.Sleep(5 * time.Second)
+func heartbeat() {
+	for {
+		if len(ListOfAgents) != 0 {
+			for i, agent := range ListOfAgents {
+				if ListOfAgents[i].NotResponded >= 1 {
+					ListOfAgents[i].Status = "notresponding"
+				}
+				if ListOfAgents[i].NotResponded >= 5 {
+					ListOfAgents[i].Status = "dead"
+				}
+				if ListOfAgents[i].Status != "dead" {
+					heartbeataddr := fmt.Sprintf("http://127.0.0.1:%s/heartbeat/?HostPort=%s", agent.Port, OrchestraPort)
 					_, err := http.Get(heartbeataddr)
 					if err != nil {
-						fmt.Println("Error sending heartbeat :", err)
+						ListOfAgents[i].NotResponded++
 						continue
+					} else {
+						if ListOfAgents[i].Status != "busy" {
+							ListOfAgents[i].NotResponded = 0
+							ListOfAgents[i].Status = "online"
+						}
 					}
-					fmt.Println("Heartbeat sent to server")
+				} else {
+					ListOfAgents[i].Display = false
 				}
-			}()
+
+			}
+			ttw, _ := strconv.Atoi(newTimings.DisplayTime)
+			time.Sleep(duration(float64(ttw / 5)))
 		}
 	}
-*/
+
+}
+
+func duration(f float64) time.Duration {
+	return time.Duration(f * 1e9)
+}
+
 func mainSolver() {
 	for {
 		time.Sleep(time.Second)
@@ -125,14 +189,12 @@ func mainSolver() {
 							textwithreplacements = strings.ReplaceAll(textwithreplacements, "+", "%2B")
 							textwithreplacements = strings.ReplaceAll(textwithreplacements, "/", "%2F")
 							addr := fmt.Sprintf("http://127.0.0.1:%s/solve/?Expression=%s&Id=%s&ExecutionTimings=%s!%s!%s!%s", ListOfAgents[j].Port, textwithreplacements, MapOfExpressions[i].Id, newTimings.Plus, newTimings.Minus, newTimings.Multiply, newTimings.Divide)
-							fmt.Println(addr)
 							_, err := http.Get(addr)
 							if err != nil {
 								fmt.Println(err)
 							} else {
 								MapOfExpressions[i] = Expression{Text: MapOfExpressions[i].Text, Id: MapOfExpressions[i].Id, Result: MapOfExpressions[i].Result, Status: "solving"}
 								ListOfAgents[j].Status = "busy"
-								fmt.Println(ListOfAgents)
 							}
 
 						}
@@ -145,11 +207,16 @@ func mainSolver() {
 }
 
 func main() {
+	OrchestraPort = os.Args[1]
+	fmt.Println(OrchestraPort)
+	if OrchestraPort == "" {
+		log.Fatal("PORT not set")
+	}
 	newTimings.Plus = "1"
 	newTimings.Minus = "1"
 	newTimings.Multiply = "1"
 	newTimings.Divide = "1"
-	newTimings.DisplayTime = "1"
+	newTimings.DisplayTime = "20"
 
 	MapOfExpressions = make(map[int]Expression)
 	//MapOfExpressions[0] = Expression{Text: "2-2*2", Id: "0", Result: "0", Status: "unsolved"}
@@ -161,7 +228,7 @@ func main() {
 	//ListOfAgents = append(ListOfAgents, newAgent1)
 	//ListOfAgents = append(ListOfAgents, newAgent2)
 
-	OrchestraPort = "8080"
+	go heartbeat()
 	go mainSolver()
 
 	http.HandleFunc("/receiveresult/", ReceiveResult)
