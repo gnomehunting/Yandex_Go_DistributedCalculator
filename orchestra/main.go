@@ -78,14 +78,23 @@ func ReceiveResult(w http.ResponseWriter, r *http.Request) { // /receiveresult/ 
 
 func AddExpression(w http.ResponseWriter, r *http.Request) {
 	txt := r.FormValue("item")
-	if isValidExpression(txt) {
-		MapOfExpressions[len(MapOfExpressions)] = Expression{Text: txt, Id: strconv.Itoa(len(MapOfExpressions)), Result: "0", Status: "unsolved"}
-	} else {
-		MapOfExpressions[len(MapOfExpressions)] = Expression{Text: txt, Id: strconv.Itoa(len(MapOfExpressions)), Result: "0", Status: "invalid"}
+	needtoadd := true
+	for i := range MapOfExpressions {
+		if MapOfExpressions[i].Text == txt {
+			needtoadd = false
+		}
+	}
+	if needtoadd {
+		if isValidExpression(txt) {
+			MapOfExpressions[len(MapOfExpressions)] = Expression{Text: txt, Id: strconv.Itoa(len(MapOfExpressions)), Result: "0", Status: "unsolved"}
+		} else {
+			MapOfExpressions[len(MapOfExpressions)] = Expression{Text: txt, Id: strconv.Itoa(len(MapOfExpressions)), Result: "0", Status: "invalid"}
+		}
 	}
 
 	http.Redirect(w, r, "/calculator/", http.StatusSeeOther)
 }
+
 func CalculatorPage(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("orchestra/calculator.html"))
 	tmpl.Execute(w, MapOfExpressions)
