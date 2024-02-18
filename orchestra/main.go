@@ -173,12 +173,3 @@ func main() {
 	http.HandleFunc("/addagent/", AddAgent)
 	http.ListenAndServe(":"+OrchestraPort, nil)
 }
-
-/*{{range .}}
-      <li>Expression: {{.Text}} &nbsp &nbspResult: {{.Result}}<br> ID: {{.Id}} &nbsp &nbsp Status: {{.Status}}  </li>
-  {{end}}
-
-for _, expr := range MapOfExpressions {
-	fmt.Fprintf(w, "<li> %s %s %s %.3f</li>", expr.Text, expr.Id, expr.Status, expr.Result)
-}
-*/
