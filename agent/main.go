@@ -29,7 +29,7 @@ func eval(tosolve string) float64 { // костыль, чтобы функция
 	return float64(toret)
 }
 
-func evalWithDelay(expr string, timings []string) (result float64) { // функция, необходимая для работы solve, ждёт столько, сколько передали, потом решает выражение
+func evalWithDelay(expr string, timings []string) (result float64) { // функция, необходимая для работы solve, ждёт заданные оркестром тайминги * вхождение знаков в выражение, потом решает выражение
 	intExecutionTimings := []int{}
 	for i := 0; i < len(timings); i++ {
 		val, _ := strconv.Atoi(timings[i])
@@ -40,20 +40,19 @@ func evalWithDelay(expr string, timings []string) (result float64) { // функ
 	return eval(expr)
 }
 
-func sendToOrchestraByGet(res float64) { // функция, необходимая для работы solve, отправляет решённое выражение
+func sendToOrchestraByGet(res float64) { // функция, необходимая для работы solve, отправляет решённое выражение орекстратору
 	addr := fmt.Sprintf("http://127.0.0.1:%s/receiveresult/?Result=%.3f&Id=%s&AgentPort=%s", ConnectedTo, Result, Id, AgentPort)
 	fmt.Println(addr)
-	//addr := "http://127.0.0.1:8080/receiveresult/?Result=15.5&Id=1488"
 	_, _ = http.Get(addr)
 }
 
-func Connect(w http.ResponseWriter, r *http.Request) { // /connect/ Даёт порт, на котором хостится оркестр
+func Connect(w http.ResponseWriter, r *http.Request) { // /connect/ орекстр делает гет запрос сюда, чтобы дать агенту знать о порте оркестра
 	ConnectedTo = r.URL.Query().Get("HostPort")
 	fmt.Println(ConnectedTo)
 
 }
 
-func Solve(w http.ResponseWriter, r *http.Request) { // /solve/ получает выражение и онправляет его оркустру
+func Solve(w http.ResponseWriter, r *http.Request) { // /solve/ получает, решает и отправляет выражение оркестру, гетами
 	Expression = r.URL.Query().Get("Expression")
 	Id = r.URL.Query().Get("Id")
 	ExecutionTimings := strings.Split(r.URL.Query().Get("ExecutionTimings"), "!")
@@ -72,7 +71,7 @@ func HandleHeratbeat(w http.ResponseWriter, r *http.Request) { // /heartbeat/ о
 }
 
 func main() {
-	AgentPort = os.Args[1]
+	AgentPort = os.Args[1] // через os.args задаётся порт, на котором будет работать агент
 	if AgentPort == "" {
 		log.Fatal("PORT not set")
 	}
@@ -83,10 +82,5 @@ func main() {
 	http.HandleFunc("/solve/", Solve)
 	http.HandleFunc("/heartbeat/", HandleHeratbeat)
 
-	http.ListenAndServe(":"+AgentPort, nil)
+	http.ListenAndServe(":"+AgentPort, nil) //обратботка эндпоинтов
 }
-
-// 127.0.0.1:8999/connect/?HostPort=8080
-// 127.0.0.1:8000/solve/?Expression=(2%2B2*5-3)%2F2&Id=1&ExecutionTimings=1!2!3!4
-// + == %2B
-// / == %2F

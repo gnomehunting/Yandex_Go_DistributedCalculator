@@ -12,19 +12,19 @@ import (
 	"time"
 )
 
-type Agent struct {
+type Agent struct { // структура, которая отражает агента: поле статус(notresponding/busy/dead/online), порт, поле отражающее кол во пропущенных хартбитов, поле, которое говорит - показывать агента на вебстранице, или нет
 	Status       string
 	Port         string
 	NotResponded int
 	Display      bool
 }
-type Expression struct {
+type Expression struct { // структура, которая отражает выражение: поле текст(выражение записанное в строку, подлежит eval'у агентом), id, результат, и статус(notsolved/solving/solved/invalid)
 	Text   string
 	Id     string
 	Result string
 	Status string
 }
-type Timings struct {
+type Timings struct { // время в секундах, требуемое для операции и время показа сервера, не принимающего хартибиты(задаётся на 2 веб странице сервера)
 	Plus        string
 	Minus       string
 	Multiply    string
@@ -32,13 +32,12 @@ type Timings struct {
 	DisplayTime string
 }
 
-var OrchestraPort string
-var MapOfExpressions map[int]Expression
-var ListOfAgents []Agent
-var IdCounter int
-var newTimings Timings
+var OrchestraPort string                //порт оркестратора
+var MapOfExpressions map[int]Expression // мапа со структурами Expression key == Expression.id
+var ListOfAgents []Agent                // список агентов
+var newTimings Timings                  // тайминги
 
-func isValidExpression(expression string) bool {
+func isValidExpression(expression string) bool { // функция, которая проверяет выражение на правильность (скобки/знаки/цифры)
 	re := regexp.MustCompile(`^\d+([\+\-\*\/]\d+)+$`)
 	withoutcommas := expression
 	withoutcommas = strings.ReplaceAll(withoutcommas, "(", "")
@@ -62,7 +61,7 @@ func isValidExpression(expression string) bool {
 	return len(stack) == 0 && ismatching
 }
 
-func ReceiveResult(w http.ResponseWriter, r *http.Request) { // /receiveresult/ агент отправляет сюда решённое выражение
+func ReceiveResult(w http.ResponseWriter, r *http.Request) { // /receiveresult/ агент отправляет выражение на эндпоинт /receiveresult/ и оно изменяется в мапе MapOfEspressions, Агенту, решившему и отправившему результат присваивается статус online
 	result := r.URL.Query().Get("Result")
 	id := r.URL.Query().Get("Id")
 	port := r.URL.Query().Get("AgentPort")
@@ -76,7 +75,7 @@ func ReceiveResult(w http.ResponseWriter, r *http.Request) { // /receiveresult/ 
 	}
 }
 
-func AddExpression(w http.ResponseWriter, r *http.Request) {
+func AddExpression(w http.ResponseWriter, r *http.Request) { // /add/ добавляет выражение к списку ListOfExpressions с помощью формы на странице калькулятор, попутно проверяя его с помощью вышеописанной функции isValidExpression
 	txt := r.FormValue("item")
 	needtoadd := true
 	for i := range MapOfExpressions {
@@ -95,12 +94,12 @@ func AddExpression(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/calculator/", http.StatusSeeOther)
 }
 
-func CalculatorPage(w http.ResponseWriter, r *http.Request) {
+func CalculatorPage(w http.ResponseWriter, r *http.Request) { // /calculator/ отрисовка страницы калькулятор, в темплейт передаётся мапа выражений
 	tmpl := template.Must(template.ParseFiles("orchestra/calculator.html"))
 	tmpl.Execute(w, MapOfExpressions)
 }
 
-func ChangeTimings(w http.ResponseWriter, r *http.Request) {
+func ChangeTimings(w http.ResponseWriter, r *http.Request) { // /changetimings/ меняет вышеописанные тайминги при помощи форм на странице timings
 	_, err1 := strconv.Atoi(r.FormValue("plu"))
 	_, err2 := strconv.Atoi(r.FormValue("min"))
 	_, err3 := strconv.Atoi(r.FormValue("mul"))
@@ -124,12 +123,12 @@ func ChangeTimings(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/timings/", http.StatusSeeOther)
 }
 
-func TimingsPage(w http.ResponseWriter, r *http.Request) {
+func TimingsPage(w http.ResponseWriter, r *http.Request) { // /timings/ отрисовка страницы с таймингами, в темплейт передаются тайминги
 	tmpl := template.Must(template.ParseFiles("orchestra/timings.html"))
 	tmpl.Execute(w, newTimings)
 }
 
-func AddAgent(w http.ResponseWriter, r *http.Request) {
+func AddAgent(w http.ResponseWriter, r *http.Request) { // /addagent/ функция добавления агента через форму на страницу агент мониторинга, проверяет введённый порт на правильность, отправляет агенту пинг, чтобы он знал о существовании агента
 	port := r.FormValue("agentport")
 	_, err := strconv.Atoi(port)
 	if err != nil {
@@ -143,12 +142,12 @@ func AddAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
-func AgentsPage(w http.ResponseWriter, r *http.Request) {
+func AgentsPage(w http.ResponseWriter, r *http.Request) { // /agents/ отрисовка страницы с агентами, в темплейт передаётся список агентов
 	tmpl := template.Must(template.ParseFiles("orchestra/agents.html"))
 	tmpl.Execute(w, ListOfAgents)
 }
 
-func heartbeat() {
+func heartbeat() { // запускается параллельно, отправляет хартбит всем подключенным агентам, если агент пропускает хартбит, ему даётся статус notresponding, если пропускает 5 - статус dead + агент перестаёт показываться на странице мониторинга
 	for {
 		if len(ListOfAgents) != 0 {
 			for i, agent := range ListOfAgents {
@@ -182,11 +181,11 @@ func heartbeat() {
 
 }
 
-func duration(f float64) time.Duration {
+func duration(f float64) time.Duration { // функция, которая нужна для удобства работы с time.Duration и флоат64
 	return time.Duration(f * 1e9)
 }
 
-func mainSolver() {
+func mainSolver() { // функция, которая непрерыванол пробегается по списку агентов и мапе выражений чтобы выдать свободным агентам выражение
 	for {
 		time.Sleep(time.Second)
 		if len(MapOfExpressions) != 0 && len(ListOfAgents) != 0 {
@@ -216,30 +215,25 @@ func mainSolver() {
 }
 
 func main() {
-	OrchestraPort = os.Args[1]
+	OrchestraPort = os.Args[1] // через os.args задаётся порт, на котором будет работать оркестратор
 	fmt.Println(OrchestraPort)
 	if OrchestraPort == "" {
 		log.Fatal("PORT not set")
 	}
+
 	newTimings.Plus = "1"
 	newTimings.Minus = "1"
 	newTimings.Multiply = "1"
 	newTimings.Divide = "1"
-	newTimings.DisplayTime = "20"
+	newTimings.DisplayTime = "20" //дефолтные тайминги
 
-	MapOfExpressions = make(map[int]Expression)
-	//MapOfExpressions[0] = Expression{Text: "2-2*2", Id: "0", Result: "0", Status: "unsolved"}
-	//MapOfExpressions[1] = Expression{Text: "5*8-6", Id: "1", Result: "0", Status: "unsolved"}
-	//MapOfExpressions[2] = Expression{Text: "66-99*2", Id: "2", Result: "0", Status: "unsolved"}
-
-	//newAgent1 := Agent{Status: "online", Port: "8999"}
-	//newAgent2 := Agent{Status: "online", Port: "8998"}
-	//ListOfAgents = append(ListOfAgents, newAgent1)
-	//ListOfAgents = append(ListOfAgents, newAgent2)
+	MapOfExpressions = make(map[int]Expression) // make map чтобы она не была nil мапой
 
 	go heartbeat()
 	go mainSolver()
-
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/calculator/", http.StatusSeeOther)
+	})
 	http.HandleFunc("/receiveresult/", ReceiveResult)
 	http.HandleFunc("/calculator/", CalculatorPage)
 	http.HandleFunc("/timings/", TimingsPage)
@@ -247,5 +241,5 @@ func main() {
 	http.HandleFunc("/add/", AddExpression)
 	http.HandleFunc("/changetimings/", ChangeTimings)
 	http.HandleFunc("/addagent/", AddAgent)
-	http.ListenAndServe(":"+OrchestraPort, nil)
+	http.ListenAndServe(":"+OrchestraPort, nil) //обратботка эндпоинтов
 }
