@@ -83,5 +83,3 @@ func main() {
 // 127.0.0.1:8999/solve/?Expression=(2%2B2*5-3)%2F2&Id=1488&ExecutionTimings=1!2!3!4
 // + == %2B
 // / == %2F
-
-// CHECK LESSON 2 MAIN GO
