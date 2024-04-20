@@ -35,7 +35,7 @@ func evalWithDelay(expr string, timings []string) (result float64) { // функ
 		val, _ := strconv.Atoi(timings[i])
 		intExecutionTimings = append(intExecutionTimings, val)
 	}
-	ToExecutePlus, ToExecuteMinus, ToExecuteMultiply, ToExecuteDivide := strings.Count(expr, "+")*intExecutionTimings[0], strings.Count(expr, "2")*intExecutionTimings[1], strings.Count(expr, "*")*intExecutionTimings[2], strings.Count(expr, "/")*intExecutionTimings[3]
+	ToExecutePlus, ToExecuteMinus, ToExecuteMultiply, ToExecuteDivide := strings.Count(expr, "+")*intExecutionTimings[0], strings.Count(expr, "-")*intExecutionTimings[1], strings.Count(expr, "*")*intExecutionTimings[2], strings.Count(expr, "/")*intExecutionTimings[3]
 	time.Sleep(time.Second*time.Duration(ToExecuteMinus) + time.Second*time.Duration(ToExecutePlus) + time.Second*time.Duration(ToExecuteMultiply) + time.Second*time.Duration(ToExecuteDivide))
 	return eval(expr)
 }

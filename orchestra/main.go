@@ -61,6 +61,7 @@ func isValidExpression(expression string) bool { // функция, котора
 	return len(stack) == 0 && ismatching
 }
 
+// ПЕРЕДЕЛАТЬ, ВМЕСТО МАПЫ БАЗУ ДАННЫХ
 func ReceiveResult(w http.ResponseWriter, r *http.Request) { // /receiveresult/ агент отправляет выражение на эндпоинт /receiveresult/ и оно изменяется в мапе MapOfEspressions, Агенту, решившему и отправившему результат присваивается статус online
 	result := r.URL.Query().Get("Result")
 	id := r.URL.Query().Get("Id")
@@ -75,6 +76,7 @@ func ReceiveResult(w http.ResponseWriter, r *http.Request) { // /receiveresult/ 
 	}
 }
 
+// ПЕРЕДЕЛАТЬ, ВМЕСТО МАПЫ БАЗУ ДАННЫХ
 func AddExpression(w http.ResponseWriter, r *http.Request) { // /add/ добавляет выражение к списку ListOfExpressions с помощью формы на странице калькулятор, попутно проверяя его с помощью вышеописанной функции isValidExpression
 	txt := r.FormValue("item")
 	needtoadd := true
@@ -94,11 +96,13 @@ func AddExpression(w http.ResponseWriter, r *http.Request) { // /add/ добав
 	http.Redirect(w, r, "/calculator/", http.StatusSeeOther)
 }
 
+// ПЕРЕДЕЛАТЬ, ВМЕСТО МАПЫ БАЗУ ДАННЫХ
 func CalculatorPage(w http.ResponseWriter, r *http.Request) { // /calculator/ отрисовка страницы калькулятор, в темплейт передаётся мапа выражений
 	tmpl := template.Must(template.ParseFiles("orchestra/calculator.html"))
 	tmpl.Execute(w, MapOfExpressions)
 }
 
+// ПЕРЕДЕЛАТЬ, ВМЕСТО МАПЫ БАЗУ ДАННЫХ
 func ChangeTimings(w http.ResponseWriter, r *http.Request) { // /changetimings/ меняет вышеописанные тайминги при помощи форм на странице timings
 	_, err1 := strconv.Atoi(r.FormValue("plu"))
 	_, err2 := strconv.Atoi(r.FormValue("min"))
@@ -117,17 +121,20 @@ func ChangeTimings(w http.ResponseWriter, r *http.Request) { // /changetimings/ 
 	if err4 == nil {
 		newTimings.Divide = r.FormValue("div")
 	}
+
 	if err5 == nil {
 		newTimings.DisplayTime = r.FormValue("whb")
 	}
 	http.Redirect(w, r, "/timings/", http.StatusSeeOther)
 }
 
+// ПЕРЕДЕЛАТЬ, ВМЕСТО МАПЫ БАЗУ ДАННЫХ
 func TimingsPage(w http.ResponseWriter, r *http.Request) { // /timings/ отрисовка страницы с таймингами, в темплейт передаются тайминги
 	tmpl := template.Must(template.ParseFiles("orchestra/timings.html"))
 	tmpl.Execute(w, newTimings)
 }
 
+// ПЕРЕДЕЛАТЬ, ВМЕСТО МАПЫ БАЗУ ДАННЫХ
 func AddAgent(w http.ResponseWriter, r *http.Request) { // /addagent/ функция добавления агента через форму на страницу агент мониторинга, проверяет введённый порт на правильность, отправляет агенту пинг, чтобы он знал о существовании агента
 	port := r.FormValue("agentport")
 	_, err := strconv.Atoi(port)
@@ -142,11 +149,14 @@ func AddAgent(w http.ResponseWriter, r *http.Request) { // /addagent/ функц
 	}
 
 }
+
+// ПЕРЕДЕЛАТЬ, ВМЕСТО МАПЫ БАЗУ ДАННЫХ
 func AgentsPage(w http.ResponseWriter, r *http.Request) { // /agents/ отрисовка страницы с агентами, в темплейт передаётся список агентов
 	tmpl := template.Must(template.ParseFiles("orchestra/agents.html"))
 	tmpl.Execute(w, ListOfAgents)
 }
 
+// ПЕРЕДЕЛАТЬ, ВМЕСТО МАПЫ БАЗУ ДАННЫХ
 func heartbeat() { // запускается параллельно, отправляет хартбит всем подключенным агентам, если агент пропускает хартбит, ему даётся статус notresponding, если пропускает 5 - статус dead + агент перестаёт показываться на странице мониторинга
 	for {
 		if len(ListOfAgents) != 0 {
@@ -185,6 +195,7 @@ func duration(f float64) time.Duration { // функция, которая ну�
 	return time.Duration(f * 1e9)
 }
 
+// ПЕРЕДЕЛАТЬ, ВМЕСТО МАПЫ БАЗУ ДАННЫХ
 func mainSolver() { // функция, которая непрерыванол пробегается по списку агентов и мапе выражений чтобы выдать свободным агентам выражение
 	for {
 		time.Sleep(time.Second)
@@ -214,6 +225,7 @@ func mainSolver() { // функция, которая непрерыванол �
 
 }
 
+// ПЕРЕДЕЛАТЬ, ВМЕСТО МАПЫ БАЗУ ДАННЫХ
 func main() {
 	OrchestraPort = os.Args[1] // через os.args задаётся порт, на котором будет работать оркестратор
 	fmt.Println(OrchestraPort)
